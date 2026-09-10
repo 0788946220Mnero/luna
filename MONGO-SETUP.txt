@@ -1,0 +1,49 @@
+تهيئة MongoDB Atlas — خمس خطوات
+================================
+
+1. أنشئ عنقوداً مجانياً
+   cloud.mongodb.com → Build a Database → M0 (مجاني للأبد، 512MB)
+   اختر منطقة قريبة من خادم Railway لتقليل زمن الاستجابة.
+
+2. أنشئ مستخدم قاعدة بيانات
+   Database Access → Add New Database User
+   صلاحية: Read and write to any database
+   احفظ كلمة المرور — ستضعها في رابط الاتصال.
+
+3. اسمح بالوصول الشبكي  ← أكثر خطوة تُنسى
+   Network Access → Add IP Address → Allow access from anywhere (0.0.0.0/0)
+   Railway لا يعطي عنوان IP ثابتاً على الخطة العادية، لذا هذا لازم.
+   الحماية تبقى في اسم المستخدم وكلمة المرور، لا في تقييد العناوين.
+
+4. انسخ الرابط
+   Connect → Drivers → Python
+   يبدو هكذا:
+     mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
+   استبدل PASSWORD بكلمة المرور الحقيقية.
+   إن كانت تحوي رموزاً مثل @ أو # أو / فرمّزها (URL-encode):
+     @ → %40      # → %23      / → %2F      : → %3A
+
+5. ضعه في Railway
+   CODEAGENT_MONGODB_URI=<الرابط>
+   CODEAGENT_MONGODB_DB=codeagent
+
+التحقق بعد النشر:
+   curl -H "Authorization: Bearer <توكن>" https://عنوانك/api/memory/status
+   المتوقع: {"backend":"mongodb","connected":true,...}
+   أو من الواجهة: الإعدادات → الذاكرة الدائمة → الشارة تعرض "MongoDB Atlas ✓"
+
+المجموعات التي تُنشأ تلقائياً:
+   conversations   المحادثات وعناوينها وملخّصاتها
+   messages        الرسائل كاملة
+   user_facts      الحقائق الدائمة لكل مستخدم
+
+الفهارس تُنشأ تلقائياً عند أول اتصال ناجح.
+
+إن لم تضبط الرابط:
+   يعمل النظام على SQLite داخل /data/workspace/.codeagent/memory.db
+   يشتغل تماماً، لكنه مرتبط بقرص الخادم ولا يصلح لعدة نسخ متوازية.
+
+أخطاء شائعة:
+   ServerSelectionTimeout   → لم تسمح بـ 0.0.0.0/0 في Network Access
+   Authentication failed    → كلمة المرور خاطئة أو تحتاج ترميزاً
+   Invalid URI              → نسيت استبدال <password> أو حذفت mongodb+srv://

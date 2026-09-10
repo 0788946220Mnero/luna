@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>codeagent — وكيل برمجي محلي</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel-2:#1c232c; --line:#2a323d;
+    --txt:#e6edf3; --muted:#8b949e; --accent:#4f9cf9; --ok:#3fb950;
+    --warn:#d29922; --err:#f85149; --add:#1c3a24; --del:#3d1c1f;
+    --radius:10px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--txt);
+    font-family:system-ui,"Segoe UI",Tahoma,"Noto Sans Arabic",sans-serif;
+    font-size:15px; line-height:1.7;
+  }
+  header{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:12px 18px; background:var(--panel); border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:10;
+  }
+  header h1{font-size:17px; margin:0; font-weight:600}
+  .badge{font-size:12px; padding:3px 9px; border-radius:99px; background:var(--panel-2); color:var(--muted)}
+  .badge.on{background:#0d2f1a; color:var(--ok)}
+  .badge.off{background:#3d1c1f; color:var(--err)}
+  .spacer{flex:1}
+  input,textarea,button,select{font-family:inherit; font-size:14px}
+  input[type=text],input[type=password],textarea{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--txt);
+    border-radius:var(--radius); padding:9px 12px; width:100%;
+  }
+  textarea{resize:vertical; min-height:80px}
+  button{
+    background:var(--accent); color:#08131f; border:0; border-radius:var(--radius);
+    padding:9px 16px; font-weight:600; cursor:pointer;
+  }
+  button:hover{filter:brightness(1.1)}
+  button:disabled{opacity:.5; cursor:not-allowed}
+  button.ghost{background:var(--panel-2); color:var(--txt); border:1px solid var(--line)}
+  button.danger{background:var(--err); color:#fff}
+  main{display:grid; grid-template-columns:1fr 340px; gap:16px; padding:16px; max-width:1500px; margin:0 auto}
+  @media(max-width:980px){main{grid-template-columns:1fr}}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:16px}
+  .card h2{font-size:15px; margin:0 0 12px; font-weight:600}
+  .tabs{display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap}
+  .tab{padding:7px 14px; border-radius:99px; background:var(--panel-2); cursor:pointer; font-size:13px; border:1px solid transparent}
+  .tab.active{background:var(--accent); color:#08131f; font-weight:600}
+  #drop{
+    border:2px dashed var(--line); border-radius:var(--radius); padding:26px;
+    text-align:center; color:var(--muted); cursor:pointer; transition:.15s;
+  }
+  #drop.hot{border-color:var(--accent); background:#101d2e; color:var(--txt)}
+  .thumbs{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px}
+  .thumb{position:relative; width:104px; height:104px; border-radius:8px; overflow:hidden; border:1px solid var(--line)}
+  .thumb img{width:100%; height:100%; object-fit:cover}
+  .thumb button{
+    position:absolute; top:3px; left:3px; width:22px; height:22px; padding:0;
+    border-radius:50%; background:rgba(0,0,0,.75); color:#fff; font-size:14px; line-height:1;
+  }
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px}
+  .muted{color:var(--muted); font-size:13px}
+  pre{
+    background:var(--panel-2); border:1px solid var(--line); border-radius:8px;
+    padding:12px; overflow:auto; max-height:380px; direction:ltr; text-align:left;
+    font-family:ui-monospace,"Cascadia Code",Consolas,monospace; font-size:12.5px; line-height:1.55;
+    white-space:pre; margin:0;
+  }
+  .file{border:1px solid var(--line); border-radius:var(--radius); margin-bottom:12px; overflow:hidden}
+  .file-head{display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--panel-2); flex-wrap:wrap}
+  .file-head code{direction:ltr; font-size:13px; color:var(--accent)}
+  .file-body{padding:12px; display:none}
+  .file.open .file-body{display:block}
+  .stat-add{color:var(--ok); font-size:12px}
+  .stat-del{color:var(--err); font-size:12px}
+  .diff-line-add{background:var(--add); display:block}
+  .diff-line-del{background:var(--del); display:block}
+  .diff-line-meta{color:var(--muted); display:block}
+  .blocked{border-color:var(--err)}
+  .op{display:flex; gap:8px; font-size:12.5px; padding:6px 0; border-bottom:1px solid var(--line)}
+  .op:last-child{border:0}
+  .dot{width:8px; height:8px; border-radius:50%; margin-top:8px; flex:none}
+  .toast{
+    position:fixed; bottom:18px; left:18px; background:var(--panel-2); border:1px solid var(--line);
+    padding:12px 16px; border-radius:var(--radius); max-width:420px; z-index:50; display:none;
+  }
+  .toast.err{border-color:var(--err)}
+  .spin{display:inline-block; width:13px; height:13px; border:2px solid var(--line); border-top-color:var(--accent);
+        border-radius:50%; animation:sp .7s linear infinite; vertical-align:-2px; margin-left:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .notice{background:#1d2b1e; border:1px solid #2d5a33; color:#a9d3ae; padding:10px 12px; border-radius:8px; font-size:13px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🤖 codeagent</h1>
+  <span class="badge" id="st-server">جارٍ الفحص…</span>
+  <span class="badge" id="st-ollama">Ollama</span>
+  <span class="badge" id="st-model">—</span>
+  <div class="spacer"></div>
+  <input type="password" id="apikey" placeholder="مفتاح API" style="width:220px" autocomplete="off">
+  <button class="ghost" id="btn-connect">اتصال</button>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <div class="tabs">
+        <div class="tab active" data-tab="vision">🖼️ من صورة إلى كود</div>
+        <div class="tab" data-tab="ask">💬 اسأل الوكيل</div>
+        <div class="tab" data-tab="review">🔍 فحص الكود</div>
+      </div>
+
+      <!-- ============ تبويب الرؤية ============ -->
+      <div id="tab-vision">
+        <div id="drop">
+          اسحب صورة هنا، أو الصقها بـ <b>Ctrl+V</b>، أو اضغط للاختيار
+          <div class="muted" style="margin-top:6px">لقطة شاشة · تصميم واجهة · مخطط · رسالة خطأ · جدول</div>
+        </div>
+        <input type="file" id="picker" accept="image/*" multiple hidden>
+        <div class="thumbs" id="thumbs"></div>
+
+        <div style="margin-top:14px">
+          <textarea id="instructions" placeholder="مثال: حوّل هذا التصميم إلى مكوّن React مع Tailwind، واسم الملف src/components/LoginForm.jsx"></textarea>
+        </div>
+
+        <div class="row">
+          <button id="btn-generate">توليد الملفات</button>
+          <button class="ghost" id="btn-describe">وصف الصورة فقط</button>
+          <label class="muted"><input type="checkbox" id="ctx" checked> إرسال بنية المشروع للنموذج</label>
+        </div>
+
+        <div id="vision-out" style="margin-top:16px"></div>
+      </div>
+
+      <!-- ============ تبويب السؤال ============ -->
+      <div id="tab-ask" hidden>
+        <textarea id="question" placeholder="مثال: أضف تحققاً من صحة البريد الإلكتروني في src/utils.js واكتب اختباراً له"></textarea>
+        <div class="row">
+          <button id="btn-ask">تشغيل الوكيل</button>
+          <span class="muted">التعديلات تمر عبر نفس بوابة الأمان وتُسجَّل، ويمكن التراجع عنها.</span>
+        </div>
+        <div id="ask-out" style="margin-top:16px"></div>
+      </div>
+
+      <!-- ============ تبويب الفحص ============ -->
+      <div id="tab-review" hidden>
+        <div class="row" style="margin-top:0">
+          <input type="text" id="review-path" placeholder="مسار اختياري داخل المشروع (مثل src)" style="max-width:320px">
+          <button id="btn-review">افحص</button>
+        </div>
+        <div id="review-out" style="margin-top:16px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ اللوحة الجانبية ============ -->
+  <aside>
+    <div class="card">
+      <h2>الخصوصية</h2>
+      <div class="notice" id="privacy">جارٍ تحميل الإعدادات…</div>
+    </div>
+
+    <div class="card">
+      <h2>المشروع</h2>
+      <div class="muted" id="proj-root" style="direction:ltr; text-align:left; word-break:break-all">—</div>
+      <div class="row">
+        <button class="ghost" id="btn-tree">عرض البنية</button>
+      </div>
+      <pre id="tree" style="display:none; margin-top:10px; max-height:260px"></pre>
+    </div>
+
+    <div class="card">
+      <h2>سجل العمليات</h2>
+      <div id="ops" class="muted">—</div>
+      <div class="row">
+        <button class="ghost" id="btn-ops">تحديث</button>
+        <button class="danger" id="btn-undo">تراجع عن آخر تعديل</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const API = location.origin;
+const $ = (id) => document.getElementById(id);
+let images = [];          // {file, url}
+let proposals = [];       // الملفات المقترحة من النموذج
+
+// ---------- المفتاح: sessionStorage فقط، يُمحى عند إغلاق التبويب ----------
+function getKey(){ return sessionStorage.getItem("codeagent_key") || ""; }
+function setKey(v){ v ? sessionStorage.setItem("codeagent_key", v) : sessionStorage.removeItem("codeagent_key"); }
+
+function toast(msg, isErr){
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "toast" + (isErr ? " err" : "");
+  t.style.display = "block";
+  clearTimeout(t._h);
+  t._h = setTimeout(() => { t.style.display = "none"; }, 5200);
+}
+
+async function api(path, opts = {}){
+  const headers = Object.assign({"X-API-Key": getKey()}, opts.headers || {});
+  const res = await fetch(API + path, Object.assign({}, opts, {headers}));
+  let data = null;
+  try { data = await res.json(); } catch(e) { data = {detail: "استجابة غير صالحة من الخادم."}; }
+  if(!res.ok) throw new Error(data.detail || ("خطأ " + res.status));
+  return data;
+}
+
+// ---------- الحالة ----------
+async function refreshStatus(){
+  try{
+    const h = await fetch(API + "/api/health").then(r => r.json());
+    $("st-server").textContent = "الخادم v" + h.version;
+    $("st-server").className = "badge on";
+  }catch(e){
+    $("st-server").textContent = "الخادم غير متاح";
+    $("st-server").className = "badge off";
+    return;
+  }
+  try{
+    const c = await api("/api/config");
+    $("st-ollama").textContent = c.ollama_alive ? "Ollama متصل" : "Ollama غير متاح";
+    $("st-ollama").className = "badge " + (c.ollama_alive ? "on" : "off");
+    $("st-model").textContent = c.vision_model;
+    $("st-model").className = "badge";
+    $("proj-root").textContent = c.project_root;
+    $("privacy").textContent =
+      (c.store_uploads ? "⚠️ الصور تُحفظ على الخادم" : "✅ الصور تُعالج في الذاكرة ولا تُحفظ") +
+      (c.strip_exif ? " · ✅ بيانات EXIF مجرّدة" : " · ⚠️ EXIF غير مجرّد") +
+      (c.allow_apply ? " · ✏️ الكتابة مفعّلة بموافقتك" : " · 🔒 وضع القراءة فقط") +
+      " · 🔐 كل المعالجة محلية على " + c.ollama_host;
+    loadOps();
+  }catch(e){
+    $("st-ollama").textContent = e.message;
+    $("st-ollama").className = "badge off";
+  }
+}
+
+// ---------- التبويبات ----------
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    ["vision","ask","review"].forEach(name => {
+      $("tab-" + name).hidden = (name !== tab.dataset.tab);
+    });
+  };
+});
+
+// ---------- رفع الصور ----------
+const drop = $("drop");
+drop.onclick = () => $("picker").click();
+$("picker").onchange = (e) => addImages(e.target.files);
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add("hot");
+}));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove("hot");
+}));
+drop.addEventListener("drop", e => addImages(e.dataTransfer.files));
+window.addEventListener("paste", e => {
+  const items = Array.from(e.clipboardData.files || []);
+  if(items.length) addImages(items);
+});
+
+function addImages(fileList){
+  Array.from(fileList).forEach(file => {
+    if(!file.type.startsWith("image/")) return;
+    if(images.length >= 4){ toast("الحد الأقصى 4 صور.", true); return; }
+    images.push({file, url: URL.createObjectURL(file)});
+  });
+  renderThumbs();
+}
+
+function renderThumbs(){
+  const box = $("thumbs");
+  box.textContent = "";
+  images.forEach((item, index) => {
+    const wrap = document.createElement("div");
+    wrap.className = "thumb";
+    const img = document.createElement("img");
+    img.src = item.url;
+    img.alt = "صورة مرفوعة";
+    const del = document.createElement("button");
+    del.textContent = "×";
+    del.title = "إزالة";
+    del.onclick = (e) => {
+      e.stopPropagation();
+      URL.revokeObjectURL(item.url);
+      images.splice(index, 1);
+      renderThumbs();
+    };
+    wrap.append(img, del);
+    box.append(wrap);
+  });
+}
+
+function imageForm(extra){
+  const fd = new FormData();
+  images.forEach(item => fd.append("images", item.file, item.file.name));
+  Object.entries(extra || {}).forEach(([k, v]) => fd.append(k, v));
+  return fd;
+}
+
+function busy(btn, on, label){
+  btn.disabled = on;
+  if(on){
+    btn._label = btn.textContent;
+    btn.textContent = label || "جارٍ العمل…";
+    const s = document.createElement("span");
+    s.className = "spin";
+    btn.append(s);
+  }else if(btn._label){
+    btn.textContent = btn._label;
+  }
+}
+
+// ---------- وصف الصورة ----------
+$("btn-describe").onclick = async () => {
+  if(!images.length) return toast("ارفع صورة أولاً.", true);
+  const btn = $("btn-describe");
+  busy(btn, true, "جارٍ التحليل…");
+  try{
+    const data = await api("/api/vision/describe", {
+      method: "POST",
+      body: imageForm({prompt: $("instructions").value})
+    });
+    const out = $("vision-out");
+    out.textContent = "";
+    const h = document.createElement("h2");
+    h.textContent = "وصف الصورة (" + data.model + ")";
+    const p = document.createElement("pre");
+    p.style.direction = "rtl";
+    p.style.textAlign = "right";
+    p.style.whiteSpace = "pre-wrap";
+    p.textContent = data.description;
+    out.append(h, p);
+  }catch(e){ toast(e.message, true); }
+  finally{ busy(btn, false); }
+};
+
+// ---------- توليد الملفات ----------
+$("btn-generate").onclick = async () => {
+  if(!images.length) return toast("ارفع صورة أولاً.", true);
+  const btn = $("btn-generate");
+  busy(btn, true, "جارٍ التوليد…");
+  try{
+    const data = await api("/api/vision/generate", {
+      method: "POST",
+      body: imageForm({
+        instructions: $("instructions").value,
+        include_context: $("ctx").checked ? "true" : "false"
+      })
+    });
+    proposals = data.files || [];
+    renderProposals(data);
+  }catch(e){ toast(e.message, true); }
+  finally{ busy(btn, false); }
+};
+
+function renderDiff(text){
+  const pre = document.createElement("pre");
+  (text || "").split("\n").forEach(line => {
+    const span = document.createElement("span");
+    span.textContent = line + "\n";
+    if(line.startsWith("+++") || line.startsWith("---") || line.startsWith("@@")) span.className = "diff-line-meta";
+    else if(line.startsWith("+")) span.className = "diff-line-add";
+    else if(line.startsWith("-")) span.className = "diff-line-del";
+    pre.append(span);
+  });
+  return pre;
+}
+
+function renderProposals(data){
+  const out = $("vision-out");
+  out.textContent = "";
+
+  if(data.notes){
+    const note = document.createElement("div");
+    note.className = "notice";
+    note.textContent = "ملاحظات النموذج: " + data.notes;
+    out.append(note);
+  }
+  if(!proposals.length){
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "لم يقترح النموذج أي ملف. جرّب توضيح التعليمات أو استخدام نموذج رؤية أكبر.";
+    out.append(empty);
+    return;
+  }
+
+  const title = document.createElement("h2");
+  title.textContent = proposals.length + " ملف مقترح — راجعه قبل التطبيق";
+  out.append(title);
+
+  proposals.forEach((file, index) => {
+    const card = document.createElement("div");
+    card.className = "file" + (file.allowed ? "" : " blocked");
+
+    const head = document.createElement("div");
+    head.className = "file-head";
+
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = !!file.allowed;
+    box.disabled = !file.allowed;
+    box.dataset.index = index;
+    box.className = "pick";
+
+    const name = document.createElement("code");
+    name.textContent = file.path;
+
+    head.append(box, name);
+
+    if(file.allowed){
+      const stats = document.createElement("span");
+      stats.innerHTML = "";
+      const add = document.createElement("span");
+      add.className = "stat-add";
+      add.textContent = "+" + (file.added || 0);
+      const del = document.createElement("span");
+      del.className = "stat-del";
+      del.textContent = "−" + (file.removed || 0);
+      const kind = document.createElement("span");
+      kind.className = "muted";
+      kind.textContent = file.exists ? "ملف موجود — سيُستبدل" : "ملف جديد";
+      head.append(add, del, kind);
+    }else{
+      const reason = document.createElement("span");
+      reason.className = "stat-del";
+      reason.textContent = "🚫 " + (file.reason || "مرفوض");
+      head.append(reason);
+    }
+
+    if(file.purpose){
+      const purpose = document.createElement("span");
+      purpose.className = "muted";
+      purpose.textContent = "· " + file.purpose;
+      head.append(purpose);
+    }
+
+    const toggle = document.createElement("button");
+    toggle.className = "ghost";
+    toggle.textContent = "عرض الفرق";
+    toggle.style.marginRight = "auto";
+    toggle.onclick = () => {
+      card.classList.toggle("open");
+      toggle.textContent = card.classList.contains("open") ? "إخفاء" : "عرض الفرق";
+    };
+    head.append(toggle);
+
+    const body = document.createElement("div");
+    body.className = "file-body";
+    if(file.allowed) body.append(renderDiff(file.diff));
+    else{
+      const p = document.createElement("pre");
+      p.textContent = file.content.slice(0, 4000);
+      body.append(p);
+    }
+
+    card.append(head, body);
+    out.append(card);
+  });
+
+  const bar = document.createElement("div");
+  bar.className = "row";
+  const apply = document.createElement("button");
+  apply.textContent = "تطبيق الملفات المحددة";
+  apply.onclick = applySelected;
+  const warn = document.createElement("span");
+  warn.className = "muted";
+  warn.textContent = "لن يُكتب أي ملف على القرص قبل ضغطك على هذا الزر.";
+  bar.append(apply, warn);
+  out.append(bar);
+}
+
+async function applySelected(){
+  const picked = Array.from(document.querySelectorAll(".pick"))
+    .filter(box => box.checked && !box.disabled)
+    .map(box => proposals[Number(box.dataset.index)])
+    .map(file => ({path: file.path, content: file.content}));
+
+  if(!picked.length) return toast("لم تحدد أي ملف.", true);
+  if(!confirm("سيتم كتابة " + picked.length + " ملف داخل المشروع. متابعة؟")) return;
+
+  try{
+    const data = await api("/api/files/apply", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({files: picked, overwrite: true})
+    });
+    const failed = data.results.filter(r => !r.ok);
+    toast("طُبِّق " + data.applied + " ملف" + (failed.length ? " · فشل " + failed.length : ""), failed.length > 0);
+    if(failed.length) failed.forEach(f => console.warn(f.path, f.message));
+    loadOps();
+  }catch(e){ toast(e.message, true); }
+}
+
+// ---------- سؤال الوكيل ----------
+$("btn-ask").onclick = async () => {
+  const question = $("question").value.trim();
+  if(!question) return toast("اكتب سؤالك أولاً.", true);
+  const btn = $("btn-ask");
+  busy(btn, true, "الوكيل يعمل…");
+  try{
+    const data = await api("/api/agent/ask", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({question, include_context: true})
+    });
+    const out = $("ask-out");
+    out.textContent = "";
+    data.steps.forEach(step => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.marginBottom = "10px";
+      const h = document.createElement("h2");
+      h.textContent = step.kind === "tool"
+        ? (step.ok ? "✅ أداة: " : "❌ أداة: ") + step.name
+        : (step.kind === "thought" ? "💭 تفكير" : "⚠️ خطأ");
+      const p = document.createElement("pre");
+      p.style.whiteSpace = "pre-wrap";
+      p.textContent = step.text;
+      card.append(h, p);
+      out.append(card);
+    });
+    const final = document.createElement("div");
+    final.className = "card";
+    const fh = document.createElement("h2");
+    fh.textContent = "الإجابة النهائية";
+    const fp = document.createElement("pre");
+    fp.style.whiteSpace = "pre-wrap";
+    fp.style.direction = "rtl";
+    fp.style.textAlign = "right";
+    fp.textContent = data.answer;
+    final.append(fh, fp);
+    out.append(final);
+    loadOps();
+  }catch(e){ toast(e.message, true); }
+  finally{ busy(btn, false); }
+};
+
+// ---------- الفحص ----------
+$("btn-review").onclick = async () => {
+  const path = $("review-path").value.trim();
+  try{
+    const data = await api("/api/review" + (path ? "?path=" + encodeURIComponent(path) : ""));
+    const out = $("review-out");
+    out.textContent = "";
+    const h = document.createElement("h2");
+    h.textContent = `المشاكل: ${data.issues.length} (عالية ${data.counts.high} · متوسطة ${data.counts.medium} · منخفضة ${data.counts.low})`;
+    out.append(h);
+    data.issues.forEach(issue => {
+      const row = document.createElement("div");
+      row.className = "op";
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      dot.style.background = issue.severity === "high" ? "var(--err)" : issue.severity === "medium" ? "var(--warn)" : "var(--muted)";
+      const text = document.createElement("div");
+      text.textContent = `${issue.path}:${issue.line} — [${issue.rule}] ${issue.message}`;
+      row.append(dot, text);
+      out.append(row);
+    });
+  }catch(e){ toast(e.message, true); }
+};
+
+// ---------- البنية والسجل ----------
+$("btn-tree").onclick = async () => {
+  try{
+    const data = await api("/api/files/tree");
+    const pre = $("tree");
+    pre.style.display = "block";
+    pre.textContent = data.tree;
+  }catch(e){ toast(e.message, true); }
+};
+
+async function loadOps(){
+  try{
+    const data = await api("/api/operations?limit=12");
+    const box = $("ops");
+    box.textContent = "";
+    if(!data.operations.length){ box.textContent = "لا عمليات بعد."; return; }
+    data.operations.forEach(op => {
+      const row = document.createElement("div");
+      row.className = "op";
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      dot.style.background = op.status === "ok" ? "var(--ok)" :
+        (op.status === "denied" ? "var(--warn)" : (op.status === "started" ? "var(--muted)" : "var(--err)"));
+      const text = document.createElement("div");
+      const when = new Date(op.ts * 1000).toLocaleTimeString("ar");
+      text.textContent = `#${op.id} ${op.tool} · ${op.status}${op.undone ? " (متراجَع)" : ""} · ${when}`;
+      row.append(dot, text);
+      box.append(row);
+    });
+  }catch(e){ /* صامت: قد لا يكون المفتاح مضبوطاً بعد */ }
+}
+$("btn-ops").onclick = loadOps;
+
+$("btn-undo").onclick = async () => {
+  if(!confirm("سيتم التراجع عن آخر عملية تعديل. متابعة؟")) return;
+  try{
+    const data = await api("/api/undo", {method: "POST"});
+    toast(data.undone
+      ? `تم التراجع عن #${data.operation_id} (${data.tool})`
+      : (data.message || "تعذّر التراجع"), !data.undone);
+    loadOps();
+  }catch(e){ toast(e.message, true); }
+};
+
+// ---------- الاتصال ----------
+$("btn-connect").onclick = () => {
+  setKey($("apikey").value.trim());
+  refreshStatus();
+  toast("تم حفظ المفتاح لهذه الجلسة فقط.");
+};
+
+$("apikey").value = getKey();
+refreshStatus();
+</script>
+</body>
+</html>

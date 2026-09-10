@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codeagent"
+version = "0.1.0"
+description = "وكيل برمجي محلي مفتوح المصدر يقرأ ويعدّل ويفحص المشاريع عبر Ollama"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "requests>=2.31.0",
+    "PyYAML>=6.0.1",
+    "rich>=13.7.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0", "pytest-asyncio>=0.23", "ruff>=0.4.0", "httpx>=0.27.0"]
+server = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "python-multipart>=0.0.9",
+    "Pillow>=10.0.0",
+    "motor>=3.5.0",
+    "pymongo>=4.6.0",
+    "dnspython>=2.6.0",
+]
+
+[project.scripts]
+agent = "codeagent.cli:main"
+codeagent = "codeagent.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["codeagent*", "server*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.setuptools.package-data]
+codeagent = ["skills_data/*.md"]
